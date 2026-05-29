@@ -52,6 +52,19 @@
                 backdrop-filter: blur(4px);
             }
 
+            .rewardPanel {
+                transform: scale(0.72);
+                opacity: 0;
+                transition:
+                    transform 0.32s cubic-bezier(0.2, 0.9, 0.2, 1),
+                    opacity 0.24s ease;
+            }
+
+            .modal.rewardOpen .rewardPanel {
+                transform: scale(1);
+                opacity: 1;
+            }
+
             .card {
                 width: 100%;
                 cursor: pointer;
@@ -300,6 +313,7 @@
 
         <div class="modal" id="card-modal">
             <div
+                id="reward-panel"
                 class="w-[92%] max-w-xl rounded-3xl border border-amber-300/35 bg-slate-900/90 p-6 text-center shadow-2xl shadow-black/50"
             >
                 <h2 class="text-2xl font-black text-amber-300">
@@ -325,7 +339,8 @@
             const PLAYER_MAX_HP = 100;
             const KILL_HEAL_AMOUNT = 6;
             const REWARD_MODAL_DELAY_MS = 450;
-            const REWARD_CARD_INPUT_LOCK_MS = 700;
+            const REWARD_PANEL_GROW_MS = 320;
+            const REWARD_CARD_INPUT_LOCK_MS = 120;
             let stage = 1;
             let timeLeft = STAGE_TIME;
             let score = 0;
@@ -340,6 +355,7 @@
             let rewardModalTimeoutId = null;
             let rewardInputUnlockTimeoutId = null;
             let isRewardSelectionLocked = false;
+            let rewardPanelTransitionHandler = null;
 
             const bgmPattern = [
                 220, 246.94, 261.63, 293.66, 261.63, 246.94, 220, 196,
@@ -1074,6 +1090,14 @@
                 clearTimeout(rewardModalTimeoutId);
                 clearTimeout(rewardInputUnlockTimeoutId);
                 isRewardSelectionLocked = false;
+                const rewardPanel = document.getElementById("reward-panel");
+                if (rewardPanel && rewardPanelTransitionHandler) {
+                    rewardPanel.removeEventListener(
+                        "transitionend",
+                        rewardPanelTransitionHandler,
+                    );
+                    rewardPanelTransitionHandler = null;
+                }
                 stage = 1;
                 score = 0;
                 timeLeft = STAGE_TIME;
@@ -1112,6 +1136,9 @@
                 });
 
                 document.getElementById("card-modal").style.display = "none";
+                document
+                    .getElementById("card-modal")
+                    .classList.remove("rewardOpen");
                 document.getElementById("card-list").style.pointerEvents =
                     "auto";
                 document.getElementById("reward-lock-text").innerText = "";
@@ -1128,6 +1155,17 @@
                 clearTimeout(moleTimer);
                 clearTimeout(rewardModalTimeoutId);
                 clearTimeout(rewardInputUnlockTimeoutId);
+                const rewardPanel = document.getElementById("reward-panel");
+                if (rewardPanel && rewardPanelTransitionHandler) {
+                    rewardPanel.removeEventListener(
+                        "transitionend",
+                        rewardPanelTransitionHandler,
+                    );
+                    rewardPanelTransitionHandler = null;
+                }
+                document
+                    .getElementById("card-modal")
+                    .classList.remove("rewardOpen");
                 stopBgm();
                 moles.forEach((m) => {
                     if (m.isUp) downMole(m.id, "cleanup");
@@ -1236,6 +1274,7 @@
             // 랜덤 카드 3개 추첨 및 모달 오픈
             function openRewardModal() {
                 const modal = document.getElementById("card-modal");
+                const rewardPanel = document.getElementById("reward-panel");
                 const cardListContainer = document.getElementById("card-list");
                 const lockText = document.getElementById("reward-lock-text");
                 cardListContainer.innerHTML = "";
@@ -1261,16 +1300,61 @@
                     cardListContainer.appendChild(cardEl);
                 });
 
-                modal.style.display = "flex";
-
                 clearTimeout(rewardInputUnlockTimeoutId);
-                rewardInputUnlockTimeoutId = setTimeout(() => {
+                if (rewardPanel && rewardPanelTransitionHandler) {
+                    rewardPanel.removeEventListener(
+                        "transitionend",
+                        rewardPanelTransitionHandler,
+                    );
+                }
+
+                modal.style.display = "flex";
+                modal.classList.remove("rewardOpen");
+                void modal.offsetWidth;
+
+                requestAnimationFrame(() => {
+                    modal.classList.add("rewardOpen");
+                });
+
+                const unlockRewardSelection = () => {
+                    if (!isRewardSelectionLocked) {
+                        return;
+                    }
+
                     isRewardSelectionLocked = false;
                     cardListContainer.style.pointerEvents = "auto";
                     if (lockText) {
                         lockText.innerText = "";
                     }
-                }, REWARD_CARD_INPUT_LOCK_MS);
+                };
+
+                rewardInputUnlockTimeoutId = setTimeout(() => {
+                    unlockRewardSelection();
+                }, REWARD_PANEL_GROW_MS + REWARD_CARD_INPUT_LOCK_MS);
+
+                if (rewardPanel) {
+                    rewardPanelTransitionHandler = (event) => {
+                        if (event.propertyName !== "transform") {
+                            return;
+                        }
+
+                        rewardPanel.removeEventListener(
+                            "transitionend",
+                            rewardPanelTransitionHandler,
+                        );
+                        rewardPanelTransitionHandler = null;
+
+                        clearTimeout(rewardInputUnlockTimeoutId);
+                        rewardInputUnlockTimeoutId = setTimeout(() => {
+                            unlockRewardSelection();
+                        }, REWARD_CARD_INPUT_LOCK_MS);
+                    };
+
+                    rewardPanel.addEventListener(
+                        "transitionend",
+                        rewardPanelTransitionHandler,
+                    );
+                }
             }
 
             // 카드 선택 및 다음 스테이지 준비
@@ -1281,7 +1365,18 @@
 
                 cardData.effect();
                 clearTimeout(rewardInputUnlockTimeoutId);
+                const rewardPanel = document.getElementById("reward-panel");
+                if (rewardPanel && rewardPanelTransitionHandler) {
+                    rewardPanel.removeEventListener(
+                        "transitionend",
+                        rewardPanelTransitionHandler,
+                    );
+                    rewardPanelTransitionHandler = null;
+                }
                 document.getElementById("card-modal").style.display = "none";
+                document
+                    .getElementById("card-modal")
+                    .classList.remove("rewardOpen");
                 stage++;
                 updateUI();
 
