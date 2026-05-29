@@ -16,9 +16,9 @@
                 font-family: "Pretendard", "Malgun Gothic", sans-serif;
             }
 
-            body.gameTouchLock {
+            .gameBoardTouchLock {
                 touch-action: none;
-                overflow: hidden;
+                overscroll-behavior: contain;
             }
 
             .mole {
@@ -208,6 +208,7 @@
             </button>
 
             <section
+                id="game-board-section"
                 class="w-full rounded-3xl border border-white/15 bg-slate-900/65 p-5 shadow-2xl shadow-slate-900/60 backdrop-blur"
             >
                 <div
@@ -301,7 +302,16 @@
             const kakaoJavaScriptKey = "67311ec1c8aefcd868b158af40c55e83";
 
             function setGameTouchLock(shouldLock) {
-                document.body.classList.toggle("gameTouchLock", shouldLock);
+                const gameBoardSection =
+                    document.getElementById("game-board-section");
+                if (!gameBoardSection) {
+                    return;
+                }
+
+                gameBoardSection.classList.toggle(
+                    "gameBoardTouchLock",
+                    shouldLock,
+                );
             }
 
             function initKakaoShare() {
@@ -312,6 +322,20 @@
                 if (!window.Kakao.isInitialized()) {
                     window.Kakao.init(kakaoJavaScriptKey);
                 }
+            }
+
+            function scrollToGameBoard() {
+                const gameBoardSection =
+                    document.getElementById("game-board-section");
+                if (!gameBoardSection) {
+                    return;
+                }
+
+                gameBoardSection.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                    inline: "nearest",
+                });
             }
 
             // 플레이어 능력치 (아이템 카드 선택으로 영구 중첩됨)
@@ -605,6 +629,7 @@
 
                 gameActive = true;
                 setGameTouchLock(true);
+                scrollToGameBoard();
                 timeLeft = STAGE_TIME;
                 document.getElementById("start-btn").style.display = "none";
                 startBgm();
@@ -733,7 +758,10 @@
             document.addEventListener(
                 "touchmove",
                 (event) => {
-                    if (gameActive) {
+                    const gameBoardSection = event.target.closest(
+                        "#game-board-section",
+                    );
+                    if (gameActive && gameBoardSection) {
                         event.preventDefault();
                     }
                 },
