@@ -110,7 +110,9 @@
                     🔨 초인 뿅망치 디펜스
                 </h1>
                 <p class="mt-2 text-sm text-slate-300">
-                    놓치면 아프고, 잡으면 회복하는 리듬형 두더지 사냥
+                    스테이지마다 점점 강해지는 두더지들을 뿅망치로 때려잡으세요!
+                    <br />
+                    스테이지 클리어 시 특수 능력 카드가 랜덤으로 등장합니다.
                 </p>
             </header>
 
@@ -188,6 +190,39 @@
                     >연쇄
                     <strong id="stat-elec" class="text-yellow-300">0</strong
                     >%</span
+                >
+                <span class="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+                    >치명타
+                    <strong id="stat-critical" class="text-rose-300">0</strong
+                    >%</span
+                >
+                <span class="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+                    >흡혈
+                    <strong id="stat-lifeSteal" class="text-emerald-300"
+                        >0</strong
+                    >%</span
+                >
+                <span class="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+                    >연타
+                    <strong id="stat-doubleHit" class="text-lime-300">0</strong
+                    >%</span
+                >
+                <span class="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+                    >처치 시간+
+                    <strong id="stat-timeBonus" class="text-sky-300">0</strong
+                    >초</span
+                >
+                <span class="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+                    >점수 보너스
+                    <strong id="stat-scoreBonus" class="text-fuchsia-300"
+                        >0</strong
+                    >%</span
+                >
+                <span class="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+                    >보호막
+                    <strong id="stat-shield" class="text-cyan-300"
+                        >0</strong
+                    ></span
                 >
             </section>
 
@@ -295,6 +330,7 @@
             let bgmIntervalId = null;
             let bgmStep = 0;
             let isGameOverState = false;
+            let playerShield = 0;
 
             const bgmPattern = [
                 220, 246.94, 261.63, 293.66, 261.63, 246.94, 220, 196,
@@ -357,6 +393,13 @@
                 iceChance: 0, // 얼음 스킬 확률 (%) - 두더지를 3초간 멈춤
                 aoeChance: 0, // 광범위 폭발 확률 (%) - 주변 두더지 전원 타격
                 elecChance: 0, // 전기 연쇄 확률 (%) - 살아있는 다른 두더지 추가 타격
+                criticalChance: 0, // 치명타 확률 (%)
+                criticalMultiplier: 1.7, // 치명타 배율
+                lifeStealPercent: 0, // 가한 피해 일부를 회복
+                doubleHitChance: 0, // 추가 타격 확률 (%)
+                timeBonusOnKill: 0, // 처치 시 시간 보너스(초)
+                scoreBonusPercent: 0, // 처치 점수 추가 보너스(%)
+                spawnSpeedBonus: 0, // 출현 간격 추가 가속(ms)
             };
 
             // 두더지 데이터 관리
@@ -398,6 +441,54 @@
                     desc: "공격 시 15% 확률로 전도되어 다른 두더지 연쇄 타격",
                     effect: () => (playerStats.elecChance += 15),
                 },
+                {
+                    id: "criticalCore",
+                    title: "🎯 헤드헌터",
+                    desc: "치명타 확률 +18%",
+                    effect: () => (playerStats.criticalChance += 18),
+                },
+                {
+                    id: "criticalAmplifier",
+                    title: "🗡️ 관통 강화",
+                    desc: "치명타 배율 +0.35",
+                    effect: () => (playerStats.criticalMultiplier += 0.35),
+                },
+                {
+                    id: "vampireGrip",
+                    title: "🩸 흡혈 장갑",
+                    desc: "가한 피해의 12% 흡혈",
+                    effect: () => (playerStats.lifeStealPercent += 12),
+                },
+                {
+                    id: "doubleTap",
+                    title: "🥊 연타 본능",
+                    desc: "15% 확률로 즉시 추가 타격",
+                    effect: () => (playerStats.doubleHitChance += 15),
+                },
+                {
+                    id: "timeKeeper",
+                    title: "⏳ 시간 수확",
+                    desc: "두더지 처치 시 시간 +1초",
+                    effect: () => (playerStats.timeBonusOnKill += 1),
+                },
+                {
+                    id: "bounty",
+                    title: "💰 현상금",
+                    desc: "처치 점수 +25%",
+                    effect: () => (playerStats.scoreBonusPercent += 25),
+                },
+                {
+                    id: "barrier",
+                    title: "🛡️ 에너지 실드",
+                    desc: "즉시 보호막 +30 획득",
+                    effect: () => addShield(30),
+                },
+                {
+                    id: "overclock",
+                    title: "🚀 오버클럭",
+                    desc: "두더지 출현 속도 증가",
+                    effect: () => (playerStats.spawnSpeedBonus += 120),
+                },
             ];
 
             const moleElements = document.querySelectorAll(".mole");
@@ -416,10 +507,26 @@
                     playerStats.aoeChance;
                 document.getElementById("stat-elec").innerText =
                     playerStats.elecChance;
+                document.getElementById("stat-critical").innerText =
+                    playerStats.criticalChance;
+                document.getElementById("stat-lifeSteal").innerText =
+                    playerStats.lifeStealPercent;
+                document.getElementById("stat-doubleHit").innerText =
+                    playerStats.doubleHitChance;
+                document.getElementById("stat-timeBonus").innerText =
+                    playerStats.timeBonusOnKill;
+                document.getElementById("stat-scoreBonus").innerText =
+                    playerStats.scoreBonusPercent;
+                document.getElementById("stat-shield").innerText = playerShield;
 
                 const hpPercent = Math.max(0, (playerHp / PLAYER_MAX_HP) * 100);
                 document.getElementById("player-hp-fill").style.width =
                     hpPercent + "%";
+            }
+
+            function addShield(amount) {
+                playerShield = Math.min(300, playerShield + amount);
+                updateUI();
             }
 
             function ensureAudioContext() {
@@ -668,7 +775,10 @@
             function spawnMoleLoop() {
                 if (!gameActive) return;
 
-                const delay = Math.max(300, 1000 - stage * 80); // 스테이지 상승시 더 자주 나옴
+                const delay = Math.max(
+                    220,
+                    1000 - stage * 80 - playerStats.spawnSpeedBonus,
+                ); // 스테이지와 오버클럭 효과로 출현이 빨라짐
                 popMole();
 
                 moleTimer = setTimeout(spawnMoleLoop, delay);
@@ -747,7 +857,24 @@
                 playHitSound();
 
                 // 1. 기본 타격 수행
-                hitMole(id, playerStats.damage);
+                const isCritical =
+                    Math.random() * 100 < playerStats.criticalChance;
+                const baseDamage = isCritical
+                    ? Math.floor(
+                          playerStats.damage * playerStats.criticalMultiplier,
+                      )
+                    : playerStats.damage;
+                const firstHitResult = hitMole(id, baseDamage);
+                applyLifeSteal(firstHitResult.damageDealt);
+
+                if (
+                    moles[id].isUp &&
+                    Math.random() * 100 < playerStats.doubleHitChance
+                ) {
+                    const secondHitDamage = Math.floor(baseDamage * 0.65);
+                    const secondHitResult = hitMole(id, secondHitDamage);
+                    applyLifeSteal(secondHitResult.damageDealt);
+                }
 
                 // --- 특수 스킬 중첩 발동 체크 ---
                 // 2. 얼음 스킬 (빙결)
@@ -786,7 +913,9 @@
             // 개별 두더지 데미지 계산 및 처리
             function hitMole(id, damage) {
                 const mole = moles[id];
-                if (!mole.isUp) return;
+                if (!mole.isUp) {
+                    return { damageDealt: 0, killed: false };
+                }
 
                 setMoleExpression(id, "grimace");
                 clearTimeout(mole.hitFaceTimeoutId);
@@ -798,7 +927,9 @@
                     setMoleExpression(id, moles[id].baseExpressionKey);
                 }, 200);
 
+                const previousHp = mole.hp;
                 mole.hp -= damage;
+                const damageDealt = Math.min(previousHp, damage);
 
                 // 체력바 업데이트
                 const hpFill = document.getElementById(`hp-${id}`);
@@ -809,14 +940,47 @@
 
                 // 두더지 사망 처리
                 if (mole.hp <= 0) {
-                    score += mole.maxHp; // 강한 두더지일수록 점수 가산
+                    const bonusRate = 1 + playerStats.scoreBonusPercent / 100;
+                    score += Math.floor(mole.maxHp * bonusRate); // 강한 두더지일수록 점수 가산
+                    if (gameActive && playerStats.timeBonusOnKill > 0) {
+                        timeLeft = Math.min(
+                            99,
+                            timeLeft + playerStats.timeBonusOnKill,
+                        );
+                    }
                     changePlayerHp(KILL_HEAL_AMOUNT);
                     updateUI();
                     downMole(id, "killed");
+                    return { damageDealt, killed: true };
+                }
+
+                return { damageDealt, killed: false };
+            }
+
+            function applyLifeSteal(damageDealt) {
+                if (damageDealt <= 0 || playerStats.lifeStealPercent <= 0) {
+                    return;
+                }
+
+                const healAmount = Math.floor(
+                    (damageDealt * playerStats.lifeStealPercent) / 100,
+                );
+                if (healAmount > 0) {
+                    changePlayerHp(healAmount);
                 }
             }
 
             function changePlayerHp(delta) {
+                if (delta < 0 && playerShield > 0) {
+                    const incomingDamage = Math.abs(delta);
+                    const blockedDamage = Math.min(
+                        playerShield,
+                        incomingDamage,
+                    );
+                    playerShield -= blockedDamage;
+                    delta += blockedDamage;
+                }
+
                 playerHp = Math.max(
                     0,
                     Math.min(PLAYER_MAX_HP, playerHp + delta),
@@ -898,6 +1062,7 @@
                 score = 0;
                 timeLeft = STAGE_TIME;
                 playerHp = PLAYER_MAX_HP;
+                playerShield = 0;
                 isGameOverState = false;
                 updateShareButtonLabel();
                 setGameTouchLock(false);
@@ -905,6 +1070,13 @@
                 playerStats.iceChance = 0;
                 playerStats.aoeChance = 0;
                 playerStats.elecChance = 0;
+                playerStats.criticalChance = 0;
+                playerStats.criticalMultiplier = 1.7;
+                playerStats.lifeStealPercent = 0;
+                playerStats.doubleHitChance = 0;
+                playerStats.timeBonusOnKill = 0;
+                playerStats.scoreBonusPercent = 0;
+                playerStats.spawnSpeedBonus = 0;
                 moles.forEach((mole) => {
                     mole.hp = 10;
                     mole.maxHp = 10;
