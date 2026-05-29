@@ -714,8 +714,8 @@
                 const mole = moles[id];
                 if (!mole.isUp) return;
 
-                // 빙결 상태면 들어가기 타이머 유예
-                if (mole.isFrozen) {
+                // 빙결 상태에서는 자연 잠수(escaped)만 유예하고, 처치/정리는 즉시 처리
+                if (mole.isFrozen && reason === "escaped") {
                     mole.timeoutId = setTimeout(
                         () => downMole(id, reason),
                         1000,
