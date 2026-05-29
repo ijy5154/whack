@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>초인 뽕망치 디펜스</title>
+        <title>초인 뿅망치 디펜스</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"></script>
         <style>
@@ -107,7 +107,7 @@
                     arcade survival
                 </p>
                 <h1 class="text-3xl font-black text-amber-300 md:text-4xl">
-                    🔨 초인 뽕망치 디펜스
+                    🔨 초인 뿅망치 디펜스
                 </h1>
                 <p class="mt-2 text-sm text-slate-300">
                     놓치면 아프고, 잡으면 회복하는 리듬형 두더지 사냥
@@ -294,12 +294,14 @@
             let audioContext = null;
             let bgmIntervalId = null;
             let bgmStep = 0;
+            let isGameOverState = false;
 
             const bgmPattern = [
                 220, 246.94, 261.63, 293.66, 261.63, 246.94, 220, 196,
             ];
 
             const kakaoJavaScriptKey = "67311ec1c8aefcd868b158af40c55e83";
+            const shareTargetUrl = "https://ijy5154.github.io/whack/";
 
             function setGameTouchLock(shouldLock) {
                 const gameBoardSection =
@@ -336,6 +338,17 @@
                     block: "center",
                     inline: "nearest",
                 });
+            }
+
+            function updateShareButtonLabel() {
+                const shareButton = document.getElementById("share-btn");
+                if (!shareButton) {
+                    return;
+                }
+
+                shareButton.innerText = isGameOverState
+                    ? "결과 공유하기"
+                    : "일반 공유하기";
             }
 
             // 플레이어 능력치 (아이템 카드 선택으로 영구 중첩됨)
@@ -628,6 +641,8 @@
                 }
 
                 gameActive = true;
+                isGameOverState = false;
+                updateShareButtonLabel();
                 setGameTouchLock(true);
                 scrollToGameBoard();
                 timeLeft = STAGE_TIME;
@@ -721,7 +736,7 @@
                 mole.hitFaceTimeoutId = null;
             }
 
-            // 뽕망치 타격 (클릭 이벤트)
+            // 뿅망치 타격 (클릭 이벤트)
             function handleMoleHit(event) {
                 event.preventDefault();
                 const id = parseInt(
@@ -883,6 +898,8 @@
                 score = 0;
                 timeLeft = STAGE_TIME;
                 playerHp = PLAYER_MAX_HP;
+                isGameOverState = false;
+                updateShareButtonLabel();
                 setGameTouchLock(false);
                 playerStats.damage = 10;
                 playerStats.iceChance = 0;
@@ -913,6 +930,8 @@
 
             function gameOver() {
                 gameActive = false;
+                isGameOverState = true;
+                updateShareButtonLabel();
                 setGameTouchLock(false);
                 clearInterval(gameTimer);
                 clearTimeout(moleTimer);
@@ -928,14 +947,36 @@
             }
 
             function buildScoreShareText() {
-                return `초인 뽕망치 디펜스 기록\n스테이지: ${stage}\n점수: ${score}\n플레이어 HP: ${playerHp}`;
+                return `초인 뿅망치 디펜스 기록\n스테이지: ${stage}\n점수: ${score}\n플레이어 HP: ${playerHp}`;
+            }
+
+            function buildGeneralShareText() {
+                return "초인 뿅망치 디펜스 같이 하자! 망치 리듬게임 도전해봐 🔨";
+            }
+
+            function getShareContentByState() {
+                if (isGameOverState) {
+                    return {
+                        title: "초인 뿅망치 디펜스 결과",
+                        text: buildScoreShareText(),
+                        description: `게임오버 기록 | 스테이지 ${stage} | 점수 ${score} | HP ${playerHp}`,
+                    };
+                }
+
+                return {
+                    title: "초인 뿅망치 디펜스",
+                    text: buildGeneralShareText(),
+                    description:
+                        "초인 뿅망치 디펜스 같이 하자! 리듬감으로 두더지 싹쓸이 🔨",
+                };
             }
 
             async function shareScoreToFriend() {
-                const shareText = buildScoreShareText();
-                const shareUrl = window.location.href;
+                const shareContent = getShareContentByState();
+                const shareText = shareContent.text;
+                const shareUrl = shareTargetUrl;
                 const sharePayload = {
-                    title: "초인 뽕망치 디펜스 기록",
+                    title: shareContent.title,
                     text: shareText,
                     url: shareUrl,
                 };
@@ -949,8 +990,8 @@
                     window.Kakao.Share.sendDefault({
                         objectType: "feed",
                         content: {
-                            title: "초인 뽕망치 디펜스 기록",
-                            description: `스테이지 ${stage} | 점수 ${score} | HP ${playerHp}`,
+                            title: shareContent.title,
+                            description: shareContent.description,
                             imageUrl:
                                 "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1200&q=80",
                             link: {
@@ -998,6 +1039,7 @@
             }
 
             initKakaoShare();
+            updateShareButtonLabel();
 
             // 랜덤 카드 3개 추첨 및 모달 오픈
             function openRewardModal() {
